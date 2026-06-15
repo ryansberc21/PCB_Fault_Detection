@@ -34,16 +34,16 @@ ssh -T git@github.com
 
 ## 2. Capture Images
 
-For a USB webcam:
+Capture images using the CSI ribbon camera. Captured images are automatically added, committed, and pushed to your remote GitHub repository on successful completion.
 
 ```bash
-python3 jetson_capture.py --camera-type usb --count 10 --interval 2
+python3 jetson_capture.py --count 10
 ```
 
-For a Jetson CSI ribbon camera:
+With a custom commit message:
 
 ```bash
-python3 jetson_capture.py --camera-type csi --count 10 --interval 2
+python3 jetson_capture.py --count 25 --message "Add new field training images"
 ```
 
 The images will be written to:
@@ -52,47 +52,17 @@ The images will be written to:
 trainingImages/
 ```
 
-## 3. Capture and Push to GitHub
-
-Use `--push` to add, commit, and push the captured images:
-
-```bash
-python3 jetson_capture.py --camera-type usb --count 10 --interval 2 --push
-```
-
-With a custom commit message:
-
-```bash
-python3 jetson_capture.py --camera-type csi --count 25 --interval 1 --push --message "Add new field training images"
-```
-
 ## Useful Options
 
 ```text
---count          Number of images to take.
---interval       Seconds between images.
---width          Image width. Default: 1280.
---height         Image height. Default: 720.
---prefix         Filename prefix. Default: jetson.
---camera-index   USB camera index. Default: 0.
+--count          Number of images to take. Default: 1.
 --sensor-id      CSI camera sensor id. Default: 0.
---flip-method    CSI camera orientation adjustment, 0-7.
+--message        Optional git commit message.
 ```
 
 ## Troubleshooting
 
-If the camera does not open, try the other camera type:
-
-```bash
-python3 jetson_capture.py --camera-type csi
-python3 jetson_capture.py --camera-type usb
-```
-
-For USB cameras, check devices:
-
-```bash
-ls /dev/video*
-```
+If the camera does not open, ensure it is connected properly and the sensor-id is correct.
 
 If `git push` fails, confirm the repo remote and authentication:
 
@@ -100,3 +70,4 @@ If `git push` fails, confirm the repo remote and authentication:
 git remote -v
 ssh -T git@github.com
 ```
+
