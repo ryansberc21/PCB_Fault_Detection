@@ -5,7 +5,5 @@ This project uses YOLO object detection to identify possible faults on printed c
 The project is designed to run on an NVIDIA Jetson platform for edge AI inference.
 
 When running, use this prompt:
-'python3 jetson_capture.py --count N --sensor-id M --message "Custom message"'
-Example:
-'python3 jetson_capture.py --count 10 --sensor-id 0 --message "First batch"'
+'python3 jetson_capture.py --count N 
 
