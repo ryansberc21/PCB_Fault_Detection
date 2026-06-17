@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
-import threading
 import time
 from datetime import datetime
 from pathlib import Path
@@ -23,7 +22,7 @@ REPO_ROOT = Path(__file__).resolve().parent
 IMAGE_DIR = REPO_ROOT / "trainingImages"
 
 # Default configuration constants
-INTERVAL = 5.0
+INTERVAL = 1
 WIDTH = 1280
 HEIGHT = 720
 FPS = 30
@@ -34,7 +33,8 @@ PREFIX = "jetson"
 
 
 # Generates the GStreamer pipeline string required to initialize and configure 
-# the Jetson CSI camera sensor with proper scaling, frame rates, and color formats.
+# the Jetson CSI camera sensor. Uses 'appsink max-buffers=1 drop=true' to prevent 
+# old frames from queueing up, ensuring we always retrieve the latest real-time frame.
 def gstreamer_pipeline(
     sensor_id: int,
     capture_width: int = WIDTH,
@@ -50,7 +50,8 @@ def gstreamer_pipeline(
         f"format=(string)NV12, framerate=(fraction){framerate}/1 ! "
         f"nvvidconv flip-method={flip_method} ! "
         f"video/x-raw, width=(int){display_width}, height=(int){display_height}, "
-        "format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink"
+        "format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! "
+        "appsink max-buffers=1 drop=true"
     )
 
 
@@ -68,52 +69,23 @@ def open_camera(sensor_id: int) -> cv2.VideoCapture:
     return cap
 
 
-# A helper class that runs a background thread to continuously read frames from 
-# the camera. This prevents the OpenCV internal buffer from queueing old frames, 
-# ensuring we always get the latest real-time frame when read() is called.
-class CameraStream:
-    def __init__(self, sensor_id: int):
-        self.cap = open_camera(sensor_id)
-        self.frame = None
-        self.ok = False
-        self.running = True
-        self.thread = threading.Thread(target=self._update, daemon=True)
-        self.thread.start()
-
-    def _update(self):
-        while self.running:
-            self.ok, self.frame = self.cap.read()
-            if not self.ok:
-                self.running = False
-                break
-            time.sleep(0.01)
-
-    def read(self) -> tuple[bool, cv2.Mat | None]:
-        return self.ok, self.frame
-
-    def release(self):
-        self.running = False
-        self.thread.join(timeout=1.0)
-        self.cap.release()
-
-
 # Performs camera warmup, grabs frames from the camera feed, saves them to 
 # local storage under the trainingImages/ folder with timestamps, and returns 
 # a list of saved image file paths.
 def capture_images(count: int, sensor_id: int) -> list[Path]:
     IMAGE_DIR.mkdir(parents=True, exist_ok=True)
-    
-    # Run a background thread to continuously update the frame and prevent buffer lag.
-    stream = CameraStream(sensor_id)
+    cap = open_camera(sensor_id)
     saved_paths: list[Path] = []
 
     try:
         # Let exposure and white balance settle before the first capture.
-        time.sleep(max(WARMUP_FRAMES, 0) * 0.03)
+        for _ in range(max(WARMUP_FRAMES, 0)):
+            cap.read()
+            time.sleep(0.03)
 
         for index in range(count):
-            # Capture the photo frame from the camera stream (real-time, no buffer lag)
-            ok, frame = stream.read()
+            # Capture the photo frame from the camera (real-time, no buffer lag)
+            ok, frame = cap.read()
             if not ok or frame is None:
                 raise RuntimeError("Camera returned an empty frame.")
 
@@ -130,7 +102,7 @@ def capture_images(count: int, sensor_id: int) -> list[Path]:
             if index < count - 1:
                 time.sleep(INTERVAL)
     finally:
-        stream.release()
+        cap.release()
 
     return saved_paths
 
