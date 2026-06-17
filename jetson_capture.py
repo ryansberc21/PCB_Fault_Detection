@@ -89,8 +89,9 @@ def capture_images(count: int, sensor_id: int) -> list[Path]:
             if not ok or frame is None:
                 raise RuntimeError("Camera returned an empty frame.")
 
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-            image_path = IMAGE_DIR / f"{PREFIX}_{timestamp}_{index + 1:03d}.jpg"
+            now = datetime.now()
+            timestamp = now.strftime("%d%m%Y_%H.%M.%S.") + f"{now.microsecond // 1000:03d}"
+            image_path = IMAGE_DIR / f"{timestamp}.jpg"
 
             # Save the captured frame to a JPEG file
             if not cv2.imwrite(str(image_path), frame, [cv2.IMWRITE_JPEG_QUALITY, QUALITY]):
